@@ -1,0 +1,157 @@
+
+import random
+import difflib
+
+VALID_CHOICES = ["rock", "paper", "scissors"]
+
+# Emoji decoration for display
+EMOJI = {
+    "rock": "🪨",
+    "paper": "📄",
+    "scissors": "✂️",
+}
+
+# Common typos, abbreviations, synonyms, and emojis mapped to canonical choices
+ALIASES = {
+    # Rock
+    "r": "rock", "ro": "rock", "roc": "rock", "rok": "rock", "rockk": "rock",
+    "stone": "rock", "🪨": "rock", "🧱": "rock",
+    # Paper
+    "p": "paper", "pa": "paper", "papr": "paper", "papre": "paper",
+    "pape": "paper", "paper": "paper", "page": "paper",
+    "📄": "paper", "📃": "paper", "📑": "paper",
+    # Scissors
+    "s": "scissors", "sc": "scissors", "sci": "scissors", "scisors": "scissors",
+    "scissor": "scissors", "scissers": "scissors", "scizors": "scissors",
+    "scissors": "scissors", "✂️": "scissors"
+}
+
+# Additional near-typos to consider in fuzzy matching
+NEAR_CHOICES = set(list(VALID_CHOICES) + list(ALIASES.keys()))
+
+def normalize_choice(user_text: str) -> str | None:
+    """
+    Normalize the user's input to one of 'rock', 'paper', or 'scissors'.
+    Returns the canonical choice or None if it can't be resolved.
+    """
+    if not user_text:
+        return None
+
+    t = user_text.strip().lower()
+
+    # Quick direct alias resolution
+    if t in ALIASES:
+        return ALIASES[t]
+
+    # If the first character is r/p/s and user typed a short form, map it
+    # (but avoid mapping 'sc' to 'scissors' via alias above already)
+    if t in ("r", "p", "s"):
+        return ALIASES[t]
+
+    # Fuzzy matching to catch close typos ("roock", "paperr", "sizzors", etc.)
+    # Try fuzzy against aliases first (wider coverage), then canonical choices.
+    # Cutoff controls strictness; 0.6 is a good balance for short words.
+    match = difflib.get_close_matches(t, list(NEAR_CHOICES), n=1, cutoff=0.6)
+    if match:
+        m = match[0]
+        # If the fuzzy match is an alias, resolve it; else if it's a canonical choice, return it
+        if m in ALIASES:
+            return ALIASES[m]
+        if m in VALID_CHOICES:
+            return m
+
+    # Final attempt: if input starts with known initials and is long-ish, try mapping
+    if t.startswith("ro"):
+        return "rock"
+    if t.startswith("pa"):
+        return "paper"
+    if t.startswith("sc"):
+        return "scissors"
+
+    return None
+
+
+def decide_winner(player: str, computer: str) -> str:
+    """
+    Returns 'player', 'computer', or 'tie' according to standard RPS rules.
+    """
+    if player == computer:
+        return "tie"
+    wins_against = {
+        "rock": "scissors",
+        "paper": "rock",
+        "scissors": "paper"
+    }
+    return "player" if wins_against[player] == computer else "computer"
+
+
+def prompt_for_choice() -> str:
+    """
+    Prompt the user until a valid normalized choice is provided.
+    """
+    while True:
+        raw = input("Choose Rock, Paper, or Scissors (short forms like r/p/s allowed): ")
+        choice = normalize_choice(raw)
+        if choice is not None:
+            return choice
+        print("Sorry, I didn't understand that. Try something like 'rock', 'paper', 'scissors', or 'r/p/s'.")
+
+
+def play_round() -> tuple[str, str, str]:
+    """
+    Plays one round; returns (player_choice, computer_choice, result).
+    """
+    player_choice = prompt_for_choice()
+    computer_choice = random.choice(VALID_CHOICES)
+    result = decide_winner(player_choice, computer_choice)
+
+    print(f"\nYou chose:     {player_choice.capitalize()} {EMOJI[player_choice]}")
+    print(f"Computer chose:{computer_choice.capitalize()} {EMOJI[computer_choice]}")
+
+    if result == "tie":
+        print("It's a tie!")
+    elif result == "player":
+        print("You win! 🎉")
+    else:
+        print("Computer wins! 🤖")
+
+    return player_choice, computer_choice, result
+
+
+def play_best_of(n: int = 3):
+    """
+    Play a best-of-n match (n must be odd). Defaults to best-of-3.
+    """
+    if n % 2 == 0:
+        raise ValueError("Best-of-N must be an odd number (e.g., 3, 5, 7).")
+
+    player_score = 0
+    computer_score = 0
+    needed = (n // 2) + 1
+
+    print(f"\nRock, Paper, Scissors — Best of {n}. First to {needed} wins.\n")
+
+    while player_score < needed and computer_score < needed:
+        _, _, result = play_round()
+        if result == "player":
+            player_score += 1
+        elif result == "computer":
+            computer_score += 1
+        else:
+            # Tie does not change scores
+            pass
+
+        print(f"Score — You: {player_score} | Computer: {computer_score}\n")
+
+    if player_score > computer_score:
+        print(f"You won the match {player_score}-{computer_score}! 🏆")
+    else:
+        print(f"Computer won the match {computer_score}-{player_score}. Better luck next time!")
+
+
+if __name__ == "__main__":
+    # Single round:
+    # play_round()
+
+    # Or best-of-3 (change to 5 or 7 if you like):
+    play_best_of(3)
