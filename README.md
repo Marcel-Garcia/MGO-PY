@@ -1,1 +1,1 @@
-Tetris, Snake, Rock Paper Scisors with Py
+Tetris, Snake, Rock Paper Scissors with Py
